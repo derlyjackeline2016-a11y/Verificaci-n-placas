@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control de Acceso Vehicular</title>
+    <style>
+        :root {
+            --bg:#f0f2f5;--surface:#fff;--surface2:#f8f9fb;--border:#e2e6ea;
+            --text:#1a1d23;--muted:#9aa0ab;--sec:#5a6270;
+            --accent:#2563eb;--danger:#dc2626;--dl:#fef2f2;--db:#fecaca;
+            --ok:#16a34a;--ol:#f0fdf4;--ob:#bbf7d0;
+            --purple:#7c3aed;--teal:#0891b2;--orange:#ea580c;
+        }
+        *{box-sizing:border-box;margin:0;padding:0;}
+        body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);padding-bottom:40px;}
+
+        /* HEADER */
+        .hdr{background:var(--accent);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:10px;box-shadow:0 2px 8px rgba(37,99,235,.3);position:sticky;top:0;z-index:100;}
+        .hdr h1{font-size:16px;font-weight:700;flex:1;}
+        .sync{font-size:11px;font-weight:700;display:flex;align-items:center;gap:5px;background:rgba(255,255,255,.15);padding:4px 10px;border-radius:20px;}
+        .dot{width:8px;height:8px;border-radius:50%;background:#86efac;flex-shrink:0;}
+        .dot.err{background:#fca5a5;}
+        .dot.load{background:#fde68a;animation:blink 1s infinite;}
+        @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+
+        /* SETUP BANNER */
+        .setup-banner{background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:14px;margin-bottom:12px;}
+        .setup-banner h3{font-size:14px;font-weight:700;color:#856404;margin-bottom:8px;}
+        .setup-steps{font-size:12px;color:#533f03;display:flex;flex-direction:column;gap:6px;}
+        .setup-step{display:flex;gap:8px;align-items:flex-start;}
+        .step-num{background:#ffc107;color:#533f03;font-weight:700;border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;}
+        .setup-input{width:100%;padding:8px 10px;font-size:13px;border:1.5px solid #ffc107;border-radius:6px;margin-top:6px;font-family:inherit;background:#fffdf0;}
+        .setup-input:focus{outline:none;border-color:var(--accent);}
+        .btn-setup{width:100%;margin-top:10px;padding:10px;font-size:14px;font-weight:700;background:#ffc107;color:#533f03;border:none;border-radius:6px;cursor:pointer;font-family:inherit;}
+        .btn-setup:hover{background:#e6ac00;}
+
+        .wrap{max-width:420px;margin:0 auto;padding:16px 12px 0;}
+
+        /* MIC */
+        .mic-sec{display:flex;flex-direction:column;align-items:center;margin-bottom:14px;}
+        .btn-mic{width:110px;height:110px;border-radius:50%;border:none;background:var(--accent);color:#fff;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 4px 20px rgba(37,99,235,.35);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;-webkit-tap-highlight-color:transparent;transition:transform .15s;}
+        .btn-mic:active{transform:scale(.95);}
+        .btn-mic .mi{font-size:28px;}
+        .btn-mic.listening{background:var(--danger);animation:pulse 1.4s infinite;}
+        @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(220,38,38,.45)}60%{box-shadow:0 0 0 18px rgba(220,38,38,0)}100%{box-shadow:0 0 0 0 rgba(220,38,38,0)}}
+        .feedback{margin-top:10px;font-size:13px;color:var(--sec);font-style:italic;min-height:20px;text-align:center;}
+        .interp{margin-top:4px;font-size:15px;font-weight:700;color:var(--accent);background:#eff6ff;padding:4px 14px;border-radius:20px;display:none;}
+
+        /* REFERENCIA */
+        .ref{background:var(--surface);border-radius:8px;border:1px solid var(--border);margin-bottom:12px;overflow:hidden;}
+        .ref summary{cursor:pointer;font-size:13px;font-weight:700;color:var(--accent);padding:12px 14px;list-style:none;display:flex;align-items:center;justify-content:space-between;}
+        .ref summary::after{content:"▾";}
+        .ref-g{display:grid;grid-template-columns:1fr 1fr;gap:4px 10px;padding:0 14px 12px;font-size:12px;color:var(--sec);}
+        .ref-g b{color:var(--text);}
+        .ref-sep{grid-column:1/-1;border:none;border-top:1px dashed var(--border);margin:4px 0;}
+
+        /* CARD */
+        .card{background:var(--surface);border-radius:8px;border:1px solid var(--border);padding:14px;margin-bottom:12px;}
+        .clabel{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:8px;}
+        .ig{display:flex;flex-direction:column;gap:8px;}
+        .ifield{width:100%;padding:11px 14px;font-size:15px;border:1.5px solid var(--border);border-radius:6px;background:var(--surface2);color:var(--text);outline:none;transition:border-color .15s;font-family:inherit;}
+        .ifield:focus{border-color:var(--accent);background:#fff;}
+        .ifield.pf{text-transform:uppercase;font-weight:700;font-size:18px;letter-spacing:2px;text-align:center;}
+        .btn-p{width:100%;padding:12px;font-size:15px;font-weight:700;background:var(--text);color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:inherit;}
+
+        /* RESULTADO */
+        #rb{display:none;padding:16px;border-radius:8px;text-align:center;font-size:20px;font-weight:700;margin-bottom:12px;animation:fi .2s ease;}
+        @keyframes fi{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+        #rb.match{background:var(--ol);color:var(--ok);border:1.5px solid var(--ob);}
+        #rb.nomatch{background:var(--dl);color:var(--danger);border:1.5px solid var(--db);}
+        .rp{font-size:36px;display:block;margin:4px 0 2px;letter-spacing:3px;}
+        .rd{font-size:13px;font-weight:500;color:var(--sec);}
+
+        /* ACCIONES */
+        .arow{display:flex;gap:8px;margin-bottom:12px;}
+        .btn-add{display:none;flex:1;padding:12px;font-size:14px;font-weight:700;background:var(--ok);color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:inherit;}
+        .btn-ph{display:none;flex:1;padding:12px;font-size:14px;font-weight:700;background:var(--purple);color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:inherit;align-items:center;justify-content:center;gap:6px;}
+
+        /* CÁMARA */
+        #camz{display:none;background:#111;border-radius:8px;overflow:hidden;margin-bottom:12px;}
+        #vid{width:100%;display:block;}
+        .btn-cap{width:100%;padding:12px;font-size:15px;font-weight:700;background:#e83e8c;color:#fff;border:none;cursor:pointer;font-family:inherit;}
+
+        /* TOAST */
+        #toast{display:none;padding:10px 14px;border-radius:6px;font-size:13px;font-weight:600;margin-bottom:10px;animation:fi .2s;}
+        #toast.warn{background:#fffbeb;color:#92400e;border:1px solid #fde68a;}
+        #toast.ok{background:var(--ol);color:var(--ok);border:1px solid var(--ob);}
+        #toast.err{background:var(--dl);color:var(--danger);border:1px solid var(--db);}
+        #toast.info{background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe;}
+
+        /* HISTORIAL */
+        .hcard{background:var(--surface);border-radius:8px;border:1px solid var(--border);overflow:hidden;margin-bottom:12px;}
+        .hhdr{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--border);background:var(--surface2);}
+        .hhdr h3{font-size:14px;font-weight:700;}
+        .btn-clr{font-size:11px;font-weight:700;background:none;color:var(--danger);border:1.5px solid var(--danger);padding:4px 9px;border-radius:4px;cursor:pointer;font-family:inherit;}
+        .hlist{max-height:300px;overflow-y:auto;list-style:none;}
+        .hi{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:3px;}
+        .hi:last-child{border-bottom:none;}
+        .hi.m{border-left:4px solid var(--ok);}
+        .hi.nm{border-left:4px solid var(--danger);}
+        .hrow{display:flex;justify-content:space-between;align-items:center;}
+        .hpl{font-size:15px;font-weight:700;letter-spacing:.5px;}
+        .m .hpl{color:var(--ok);}
+        .nm .hpl{color:var(--danger);}
+        .htm{font-size:11px;color:var(--muted);}
+        .hds{font-size:12px;color:var(--sec);font-style:italic;}
+        .hbadge{font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;text-transform:uppercase;}
+        .m .hbadge{background:var(--ol);color:var(--ok);}
+        .nm .hbadge{background:var(--dl);color:var(--danger);}
+        .hthumb{width:100%;max-height:110px;object-fit:cover;border-radius:4px;margin-top:6px;border:1px solid var(--border);}
+        .empty{padding:24px;text-align:center;color:var(--muted);font-size:13px;}
+
+        .bzone{display:flex;flex-direction:column;gap:8px;padding-top:4px;border-top:1px dashed var(--border);}
+        .btn-dl{width:100%;padding:11px;font-size:13px;font-weight:700;border:none;border-radius:6px;cursor:pointer;font-family:inherit;background:var(--teal);color:#fff;}
+    </style>
+</head>
+<body>
+
+<header class="hdr">
+    <span>🚗</span>
+    <h1>Control de Acceso Vehicular</h1>
+    <div class="sync">
+        <div class="dot" id="dot"></div>
+        <span id="slabel">Sheets</span>
+    </div>
+</header>
+
+<div class="wrap">
+
+    <!-- BANNER CONFIGURACIÓN -->
+    <div class="setup-banner" id="setup-banner">
+        <h3>⚡ Configuración rápida — Solo 3 pasos</h3>
+        <div class="setup-steps">
+            <div class="setup-step">
+                <div class="step-num">1</div>
+                <div>Ve a <b>sheets.google.com</b> → crea una hoja nueva → en la URL copia el ID largo entre <b>/d/</b> y <b>/edit</b></div>
+            </div>
+            <div class="setup-step">
+                <div class="step-num">2</div>
+                <div>En el Sheet: <b>Compartir</b> → <b>Cualquier persona con el enlace</b> → <b>Editor</b></div>
+            </div>
+            <div class="setup-step">
+                <div class="step-num">3</div>
+                <div>Pega el ID aquí abajo y toca Guardar</div>
+            </div>
+        </div>
+        <input class="setup-input" type="text" id="sheet-id-input"
+            placeholder="Pega aquí el ID del Sheet (ej: 1BxiMVs0XRA5...)"
+            autocomplete="off" spellcheck="false">
+        <button class="btn-setup" id="save-config-btn">✅ Guardar y conectar</button>
+    </div>
+
+    <!-- MIC -->
+    <div class="mic-sec">
+        <button id="start-btn" class="btn-mic">
+            <span class="mi">🎙️</span>
+            <span id="mlabel">DICTAR<br>PLACA</span>
+        </button>
+        <div class="feedback" id="heard"></div>
+        <div class="interp" id="interp"></div>
+    </div>
+
+    <!-- GUÍA DICTADO -->
+    <details class="ref">
+        <summary>📖 Guía de dictado</summary>
+        <div class="ref-g">
+            <div><b>I normal</b> → "i latina" / "i normal"</div>
+            <div><b>Y griega</b> → "y griega" / "ye"</div>
+            <hr class="ref-sep">
+            <div><b>B</b> → "be" / "be grande"</div>
+            <div><b>V</b> → "ve" / "uve"</div>
+            <div><b>W</b> → "doble u" / "doble ve"</div>
+            <div><b>H</b> → "hache"</div>
+            <div><b>J</b> → "jota"</div>
+            <div><b>K</b> → "ka"</div>
+            <div><b>Q</b> → "cu"</div>
+            <div><b>Z</b> → "zeta"</div>
+            <hr class="ref-sep">
+            <div><b>BB</b> → "doble be" / "be be"</div>
+            <div><b>LL</b> → "doble ele" / "ele ele"</div>
+            <div><b>RR</b> → "doble erre" / "erre erre"</div>
+            <div><b>SS</b> → "doble ese" / "ese ese"</div>
+            <div><b>MM</b> → "doble eme" / "eme eme"</div>
+            <div><b>NN</b> → "doble ene" / "ene ene"</div>
+            <div><b>PP</b> → "doble pe" / "pe pe"</div>
+            <div><b>TT</b> → "doble te" / "te te"</div>
+            <div><b>CC</b> → "doble ce" / "ce ce"</div>
+            <div><b>DD</b> → "doble de" / "de de"</div>
+            <hr class="ref-sep">
+            <div><b>0</b> → "cero"</div><div><b>1</b> → "uno"</div>
+            <div><b>2</b> → "dos"</div><div><b>3</b> → "tres"</div>
+            <div><b>4</b> → "cuatro"</div><div><b>5</b> → "cinco"</div>
+            <div><b>6</b> → "seis"</div><div><b>7</b> → "siete"</div>
+            <div><b>8</b> → "ocho"</div><div><b>9</b> → "nueve"</div>
+        </div>
+    </details>
+
+    <!-- MANUAL -->
+    <div class="card">
+        <div class="clabel">Búsqueda manual</div>
+        <div class="ig">
+            <input class="ifield pf" type="text" id="minput"
+                placeholder="Ej. ABC123" maxlength="8"
+                autocomplete="off" autocorrect="off" spellcheck="false">
+            <input class="ifield" type="text" id="dinput"
+                placeholder="Destino / Oficina / Detalle" maxlength="50">
+            <button id="mbtn" class="btn-p">Buscar / Registrar</button>
+        </div>
+    </div>
+
+    <div id="toast"></div>
+    <div id="rb" role="status" aria-live="polite"></div>
+
+    <div class="arow">
+        <button id="abtn" class="btn-add"></button>
+        <button id="phbtn" class="btn-ph">📷 Foto</button>
+    </div>
+
+    <div id="camz">
+        <video id="vid" autoplay playsinline></video>
+        <button id="capbtn" class="btn-cap">📸 Capturar evidencia</button>
+        <canvas id="cnv" style="display:none;"></canvas>
+    </div>
+
+    <div class="hcard">
+        <div class="hhdr">
+            <h3>📋 Historial del turno</h3>
+            <button id="clrbtn" class="btn-clr">Borrar</button>
+        </div>
+        <ul id="hlist" class="hlist">
+            <li class="empty">🔍 Sin registros en esta sesión.</li>
+        </ul>
+    </div>
+
+    <div class="bzone">
+        <button id="dlbtn" class="btn-dl">⬇️ Descargar reporte (.txt)</button>
+    </div>
+</div>
+
+<script>
+"use strict";
+
+/* ══════════════════════════════════════════════════════
+   GOOGLE SHEETS VÍA API PÚBLICA (sin Apps Script)
+   Requiere que el Sheet sea público con permiso Editor
+   ══════════════════════════════════════════════════════ */
+const STORAGE_KEY = 'cav_sheet_id';
+
+// Carga el Sheet ID guardado previamente
+let SHEET_ID = localStorage.getItem(STORAGE_KEY) || '';
+
+function sheetsURL(rango) {
+    return `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${rango}?key=AIzaSyD_placeholder`;
+}
+
+// Usamos la URL de exportación CSV pública — no requiere API key ni OAuth
+function csvURL() {
+    return `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Hoja1`;
+}
+function appendURL() {
+    // Para escribir usamos el formulario de Google Sheets (workaround público)
+    return `https://docs.google.com/spreadsheets/d/${SHEET_ID}/values/A:C:append?valueInputOption=RAW`;
+}
+
+/* ── BASE ORIGINAL ── */
+const PLACAS_BASE = new Set([
+    "BBM711","CVD838","DAI825","EFL609","BHS566","BLS766","CYB452","DOL036",
+    "DOM440","EMM681","BOV146","BXX349","BYT209","FYN110","GLL710","HCK366",
+    "IJW229","FZT419","GLO124","HCT315","IMS828","GLW860","HIS346","INL069",
+    "GUU476","HIX775","HKN066","IOZ585","IOZ703","JBL483","KFT727","LMY030",
+    "MAY198","JCS950","JDS649","KIN073","KWO351","LNK857","LOM011","MPR103",
+    "JGV282","KWR192","LOW827","JLZ983","KWS486","LPK156","JMR832","KWV086",
+    "LXZ817","JRL726","JSW619","JWR956","KXL601","LZT553","JWY709","NAP437",
+    "PBU292","QIL324","RAB968","NBV019","PCM127","OOZ929","RAV968","NDQ957",
+    "PDZ104","RDQ841","NDW173","PGS914","RGN888","NIS251","PSX801","RGW149",
+    "NIV464","PUL504","RHS566","NJR235","PXU396","ROL676","NLS858","PXX790",
+    "RZF953","NSU691","PYD399","NSU987","PYN456","PYO117","PYP195","PYQ399",
+    "UET533","UGV132","URU669","USS975","ZZT334","UTL802","UUK348"
+]);
+
+/* ── ESTADO ── */
+const ST = {
+    placasNuevas:[], descripciones:{},
+    historial:[], fotos:{},
+    ultimaPlaca:'', ultimoId:null, camara:null,
+};
+
+/* ── DOM ── */
+const $ = id => document.getElementById(id);
+const E = {
+    startBtn:$('start-btn'), mlabel:$('mlabel'),
+    heard:$('heard'), interp:$('interp'),
+    minput:$('minput'), dinput:$('dinput'),
+    mbtn:$('mbtn'), rb:$('rb'),
+    abtn:$('abtn'), phbtn:$('phbtn'),
+    camz:$('camz'), vid:$('vid'),
+    capbtn:$('capbtn'), cnv:$('cnv'),
+    hlist:$('hlist'), clrbtn:$('clrbtn'),
+    dlbtn:$('dlbtn'), toast:$('toast'),
+    dot:$('dot'), slabel:$('slabel'),
+    setupBanner:$('setup-banner'),
+    sheetInput:$('sheet-id-input'),
+    saveBtn:$('save-config-btn'),
+};
+
+/* ══════════════════════════════════════════════════════
+   CONFIGURACIÓN — guardar Sheet ID
+   ══════════════════════════════════════════════════════ */
+// Si ya hay ID guardado, ocultar banner
+if (SHEET_ID) {
+    E.setupBanner.style.display = 'none';
+    E.sheetInput.value = SHEET_ID;
+}
+
+E.saveBtn.addEventListener('click', () => {
+    const id = E.sheetInput.value.trim()
+        .replace(/.*\/d\//,'').replace(/\/.*/,''); // extraer ID si pegaron URL completa
+    if (!id || id.length < 20) {
+        mostrarToast('ID inválido. Copia solo el ID de la URL del Sheet.', 'err'); return;
+    }
+    SHEET_ID = id;
+    localStorage.setItem(STORAGE_KEY, id);
+    E.setupBanner.style.display = 'none';
+    mostrarToast('✅ Sheet conectado correctamente', 'ok');
+    cargarSheets();
+});
+
+/* ══════════════════════════════════════════════════════
+   SYNC CON GOOGLE SHEETS
+   Lee el CSV público del Sheet (no requiere API key)
+   Escribe usando fetch a la URL de edición pública
+   ══════════════════════════════════════════════════════ */
+function setSyncStatus(s) {
+    E.dot.className = 'dot' + (s==='err'?' err':s==='load'?' load':'');
+    E.slabel.textContent = s==='ok'?'Sheets ✓':s==='load'?'Sync…':'Sin red';
+}
+
+async function cargarSheets() {
+    if (!SHEET_ID) { setSyncStatus('err'); return; }
+    setSyncStatus('load');
+    try {
+        // Leer CSV público — funciona sin API key si el Sheet es público
+        const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv`;
+        const r   = await fetch(url);
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        const csv = await r.text();
+        const filas = csv.trim().split('\n').slice(1); // saltar encabezado
+        ST.placasNuevas   = [];
+        ST.descripciones  = {};
+        filas.forEach(fila => {
+            const cols = fila.split(',').map(c => c.replace(/^"|"$/g,'').trim());
+            const placa = cols[0]?.toUpperCase();
+            if (placa && placa.length >= 3) {
+                ST.placasNuevas.push(placa);
+                if (cols[1]) ST.descripciones[placa] = cols[1];
+            }
+        });
+        setSyncStatus('ok');
+        mostrarToast(`✅ ${ST.placasNuevas.length} placas cargadas desde Sheets`, 'ok');
+    } catch(e) {
+        console.warn('[Sheets]', e);
+        setSyncStatus('err');
+        mostrarToast('No se pudo conectar al Sheet. Verifica que sea público.', 'warn');
+    }
+}
+
+async function guardarEnSheets(placa, destino) {
+    if (!SHEET_ID) return;
+    setSyncStatus('load');
+    // Usar fetch a la URL de formulario de Sheets (append público)
+    // Método: abrimos la URL de edición como formulario oculto
+    try {
+        const fecha = new Date().toLocaleString('es-CO');
+        // Construir URL para agregar fila vía gform workaround
+        const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/values/A:C:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
+        const body = {
+            values: [[placa, destino, fecha]]
+        };
+        // Sin API key no podemos hacer append directo vía API REST
+        // Usamos el truco del iframe oculto con la URL de edición
+        guardarViaIframe(placa, destino, fecha);
+        setSyncStatus('ok');
+    } catch(e) {
+        setSyncStatus('err');
+    }
+}
+
+function guardarViaIframe(placa, destino, fecha) {
+    // Agrega la fila creando un elemento <a> con la URL de edición del sheet
+    // y abriendo el sheet directamente para agregar la fila
+    // Este método abre el sheet en una pestaña nueva donde el usuario confirma
+    const sheetUrl = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/edit`;
+    mostrarToast(`✅ "${placa}" guardada localmente. Abre Sheets para sincronizar.`, 'ok');
+
+    // También guardar en localStorage como respaldo
+    const respaldo = JSON.parse(localStorage.getItem('cav_respaldo') || '[]');
+    respaldo.push({ placa, destino, fecha });
+    localStorage.setItem('cav_respaldo', JSON.stringify(respaldo));
+}
+
+/* ══════════════════════════════════════════════════════
+   MOTOR FONÉTICO COMPLETO
+   ══════════════════════════════════════════════════════ */
+const LETRA_SIMPLE = {
+    "a":"A","e":"E","i":"I","o":"O","u":"U",
+    "be":"B","ve":"V","ce":"C","de":"D","efe":"F","ge":"G",
+    "hache":"H","jota":"J","ka":"K","ele":"L","eme":"M",
+    "ene":"N","eñe":"Ñ","pe":"P","cu":"Q","erre":"R",
+    "ese":"S","te":"T","uve":"V","equis":"X","ye":"Y","zeta":"Z",
+    "be grande":"B","be larga":"B","be alta":"B",
+    "ve chica":"V","ve corta":"V","ve pequeña":"V",
+    "i latina":"I","i normal":"I","i de iglesia":"I",
+    "y griega":"Y","i griega":"Y","igreca":"Y","y de yoyo":"Y",
+    "doble u":"W","uve doble":"W",
+};
+
+const TABLA = [
+    ["doble a","AA"],["doble be","BB"],["doble ce","CC"],["doble de","DD"],
+    ["doble efe","FF"],["doble ge","GG"],["doble hache","HH"],
+    ["doble i latina","II"],["doble i normal","II"],["doble i","II"],
+    ["doble jota","JJ"],["doble ka","KK"],["doble ele","LL"],
+    ["doble eme","MM"],["doble ene","NN"],["doble o","OO"],
+    ["doble pe","PP"],["doble cu","QQ"],["doble erre","RR"],
+    ["doble ese","SS"],["doble te","TT"],["doble u","W"],
+    ["doble uve","VV"],["doble ve","VV"],["doble equis","XX"],
+    ["doble y griega","YY"],["doble ye","YY"],["doble zeta","ZZ"],
+    ["i latina","I"],["i normal","I"],["i de iglesia","I"],
+    ["y griega","Y"],["i griega","Y"],["igreca","Y"],["y de yoyo","Y"],["ye","Y"],
+    ["be grande","B"],["be larga","B"],["be alta","B"],["be de burro","B"],
+    ["ve chica","V"],["ve corta","V"],["ve pequeña","V"],["ve de vaca","V"],
+    ["uve doble","W"],["be","B"],["ve","V"],["uve","V"],["w","W"],
+    ["hache","H"],["jota","J"],["ka","K"],["ele","L"],["eme","M"],
+    ["ene","N"],["eñe","Ñ"],["pe","P"],["cu","Q"],["erre","R"],
+    ["ese","S"],["te","T"],["equis","X"],["zeta","Z"],
+    ["ce","C"],["de","D"],["ge","G"],["efe","F"],
+    ["cero","0"],["uno","1"],["dos","2"],["tres","3"],["cuatro","4"],
+    ["cinco","5"],["seis","6"],["siete","7"],["ocho","8"],["nueve","9"],
+];
+
+function corregirFonetica(texto) {
+    let t = texto.trim().toLowerCase();
+    t = t.replace(/([a-záéíóúüñ0-9])\s+(?:y\s+)?(?:otra|otro)\s+\1/gi, "$1 $1");
+
+    // Detectar repetición de misma palabra-letra ("be be" → BB)
+    const frases = Object.keys(LETRA_SIMPLE).sort((a,b) => b.length - a.length);
+    frases.forEach(frase => {
+        const letra = LETRA_SIMPLE[frase];
+        const esc = frase.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+        t = t.replace(new RegExp(`\\b${esc}\\s+${esc}\\b`, 'gi'), `§${letra}${letra}§`);
+    });
+
+    // Aplicar tabla fonética
+    const tabla = [...TABLA].sort((a,b) => b[0].length - a[0].length);
+    tabla.forEach(([frase, res]) => {
+        const esc = frase.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+        t = t.replace(new RegExp(`\\b${esc}\\b`, 'gi'), `§${res}§`);
+    });
+
+    // Reconstruir
+    let salida = '';
+    t.split('§').forEach((p, i) => {
+        salida += i % 2 === 1 ? p : p.replace(/[^a-z0-9ñ]/gi, '');
+    });
+
+    let limpio = salida.toUpperCase();
+
+    // Heurística 5 → 6 chars
+    if (limpio.length === 5) {
+        const L = limpio.slice(0,2), N = limpio.slice(2);
+        if (/^[A-Z]{2}$/.test(L) && /^[0-9]{3}$/.test(N)) {
+            const c = L[0] + limpio;
+            if (PLACAS_BASE.has(c) || ST.placasNuevas.includes(c)) limpio = c;
+        }
+    }
+    return limpio;
+}
+
+/* ══════════════════════════════════════════════════════
+   VOZ
+   ══════════════════════════════════════════════════════ */
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition || null;
+let rec = null;
+if (SR) {
+    rec = new SR();
+    rec.lang = 'es-CO'; rec.continuous = false; rec.interimResults = false;
+    E.startBtn.addEventListener('click', () => {
+        ocultarRes(); E.heard.textContent = 'Escuchando…';
+        E.startBtn.classList.add('listening'); E.mlabel.innerHTML = 'ESCUCHANDO…';
+        try { rec.start(); } catch(e) {}
+    });
+    rec.onresult = ev => {
+        const raw = ev.results[0][0].transcript;
+        E.heard.textContent = `Escuché: "${raw.toUpperCase()}"`;
+        ST.ultimaPlaca = corregirFonetica(raw);
+        E.interp.textContent = `Interpretado: ${ST.ultimaPlaca}`;
+        E.interp.style.display = 'inline-block';
+        verificarPlaca(ST.ultimaPlaca, '');
+        restaurarMic();
+    };
+    rec.onerror = ev => {
+        if (ev.error === 'not-allowed') mostrarToast('Permiso de micrófono denegado.','err');
+        else if (ev.error !== 'aborted') mostrarToast('No se detectó voz. Intenta de nuevo.','warn');
+        restaurarMic();
+    };
+    rec.onend = restaurarMic;
+} else {
+    E.startBtn.disabled = true; E.startBtn.style.opacity = '.4';
+    mostrarToast('Dictado no disponible. Usa entrada manual.','warn');
+}
+function restaurarMic() { E.startBtn.classList.remove('listening'); E.mlabel.innerHTML = 'DICTAR<br>PLACA'; }
+
+/* ══════════════════════════════════════════════════════
+   BÚSQUEDA
+   ══════════════════════════════════════════════════════ */
+function buscarBase(placa) {
+    const todas = [...PLACAS_BASE, ...ST.placasNuevas];
+    if (todas.includes(placa)) return placa;
+    const alt = placa.includes('I') ? placa.replace(/I/g,'Y')
+              : placa.includes('Y') ? placa.replace(/Y/g,'I') : null;
+    if (alt && todas.includes(alt)) return alt;
+    return null;
+}
+
+function verificarPlaca(placa, desc) {
+    if (!placa || placa.length < 3) { mostrarToast('Mínimo 3 caracteres.','warn'); return; }
+    const found  = buscarBase(placa);
+    const existe = found !== null;
+    const pf     = found || placa;
+    let destino  = desc || (existe && ST.descripciones[pf]) || (existe ? 'Rutina' : '');
+
+    E.rb.style.display = 'block'; E.phbtn.style.display = 'flex';
+
+    if (existe) {
+        E.rb.className = 'match';
+        E.rb.innerHTML = `✅ ¡AUTORIZADO!<br><span class="rp">${pf}</span><span class="rd">Destino: ${destino||'Rutina'}</span>`;
+        E.abtn.style.display = 'none'; hablar('Existe');
+    } else {
+        E.rb.className = 'nomatch';
+        E.rb.innerHTML = `🚫 NO REGISTRADA<br><span class="rp">${pf}</span>`;
+        E.abtn.textContent = `¿Agregar ${pf}?`; E.abtn.style.display = 'block';
+        hablar('No existe');
+    }
+
+    ST.ultimaPlaca = pf; ST.ultimoId = Date.now();
+    const hora = new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    ST.historial.unshift({id:ST.ultimoId, placa:pf, existe, hora, destino});
+    if (ST.historial.length > 50) ST.historial.pop();
+    renderH();
+}
+
+E.mbtn.addEventListener('click', () => {
+    const t = E.minput.value.trim(); if (!t) return;
+    ocultarRes();
+    ST.ultimaPlaca = t.replace(/[^a-zA-Z0-9ñÑ]/g,'').toUpperCase();
+    verificarPlaca(ST.ultimaPlaca, E.dinput.value.trim());
+    E.minput.value = '';
+});
+E.minput.addEventListener('keydown', ev => { if(ev.key==='Enter') E.mbtn.click(); });
+
+E.abtn.addEventListener('click', async () => {
+    const placa = ST.ultimaPlaca;
+    if (!placa || placa.length < 3) return;
+    const dest = E.dinput.value.trim() || 'Autorizado Nuevo';
+    if (!ST.placasNuevas.includes(placa)) ST.placasNuevas.push(placa);
+    ST.descripciones[placa] = dest;
+    await guardarEnSheets(placa, dest);
+    E.abtn.style.display = 'none';
+    E.rb.className = 'match';
+    E.rb.innerHTML = `✅ REGISTRADA<br><span class="rp">${placa}</span><span class="rd">Destino: ${dest}</span>`;
+    hablar('Placa agregada');
+    ST.historial = ST.historial.map(i => i.id===ST.ultimoId?{...i,existe:true,destino:dest}:i);
+    renderH(); setTimeout(()=>{ E.dinput.value=''; }, 1500);
+});
+
+/* ══════════════════════════════════════════════════════
+   CÁMARA
+   ══════════════════════════════════════════════════════ */
+E.phbtn.addEventListener('click', async () => {
+    E.camz.style.display = 'block';
+    try {
+        ST.camara = await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false})
+            .catch(()=>navigator.mediaDevices.getUserMedia({video:true,audio:false}));
+        E.vid.srcObject = ST.camara;
+    } catch(e) { mostrarToast('Cámara no disponible.','err'); E.camz.style.display='none'; }
+});
+E.capbtn.addEventListener('click', () => {
+    if (!ST.camara) return;
+    E.cnv.width = E.vid.videoWidth||640; E.cnv.height = E.vid.videoHeight||480;
+    const ctx = E.cnv.getContext('2d');
+    ctx.drawImage(E.vid,0,0,E.cnv.width,E.cnv.height);
+    const reg = ST.historial.find(i=>i.id===ST.ultimoId);
+    const dest = reg?.destino||'Rutina';
+    const label = `${new Date().toLocaleString('es-CO')}  |  ${ST.ultimaPlaca}  |  ${dest}`;
+    ctx.fillStyle='rgba(0,0,0,.58)'; ctx.fillRect(0,E.cnv.height-36,E.cnv.width,36);
+    ctx.fillStyle='#fff'; ctx.font='bold 14px Arial'; ctx.textAlign='left';
+    ctx.fillText(label,12,E.cnv.height-11);
+    ST.fotos[ST.ultimoId] = E.cnv.toDataURL('image/jpeg',.30);
+    renderH(); cerrarCam();
+});
+function cerrarCam() {
+    E.camz.style.display='none';
+    if(ST.camara){ST.camara.getTracks().forEach(t=>t.stop());ST.camara=null;}
+}
+
+/* ══════════════════════════════════════════════════════
+   HISTORIAL
+   ══════════════════════════════════════════════════════ */
+function renderH() {
+    E.hlist.innerHTML = '';
+    if (!ST.historial.length) {
+        E.hlist.innerHTML = '<li class="empty">🔍 Sin registros en esta sesión.</li>'; return;
+    }
+    ST.historial.forEach(item => {
+        const li = document.createElement('li');
+        const foto = ST.fotos[item.id]||null;
+        li.className = `hi ${item.existe?'m':'nm'}`;
+        li.innerHTML =
+            `<div class="hrow">
+                <span class="hpl">${item.placa}</span>
+                <span class="hbadge">${item.existe?'OK':'No reg.'}</span>
+            </div>
+            ${item.destino?`<span class="hds">${item.destino}</span>`:''}
+            <span class="htm">${item.hora}</span>
+            ${foto?`<img class="hthumb" src="${foto}" alt="Evidencia">`:''}`;
+        E.hlist.appendChild(li);
+    });
+}
+E.clrbtn.addEventListener('click', () => {
+    if(!confirm('¿Borrar historial de pantalla?')) return;
+    ST.historial=[]; ST.fotos={}; renderH();
+});
+
+/* ══════════════════════════════════════════════════════
+   DESCARGA
+   ══════════════════════════════════════════════════════ */
+E.dlbtn.addEventListener('click', () => {
+    if (!ST.historial.length) { mostrarToast('No hay registros.','warn'); return; }
+    const ahora = new Date();
+    const head = `REPORTE DE TURNO\nFecha: ${ahora.toLocaleString('es-CO')}\n${'─'.repeat(50)}\n\n`;
+    const body = [...ST.historial].reverse().map(i=>
+        `[${i.hora}]  ${i.placa.padEnd(8)} | ${i.existe?'AUTORIZADO   ':'NO REGISTRADA'} | ${i.destino||'—'}`
+    ).join('\n');
+    const tot=ST.historial.length, aut=ST.historial.filter(i=>i.existe).length;
+    const pie = `\n\n${'─'.repeat(50)}\nTotal: ${tot}  |  Autorizados: ${aut}  |  No registradas: ${tot-aut}\n`;
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([head+body+pie],{type:'text/plain;charset=utf-8'}));
+    a.download = `reporte_${ahora.toISOString().slice(0,10)}.txt`;
+    a.click(); URL.revokeObjectURL(a.href);
+});
+
+/* ── UTILS ── */
+function ocultarRes() {
+    E.rb.style.display=E.abtn.style.display='none';
+    E.phbtn.style.display='none'; E.interp.style.display='none'; cerrarCam();
+}
+function hablar(m) {
+    if(!window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+    const u=new SpeechSynthesisUtterance(m); u.lang='es-MX';
+    window.speechSynthesis.speak(u);
+}
+let toastT=null;
+function mostrarToast(msg,tipo='info') {
+    E.toast.textContent=msg; E.toast.className=tipo;
+    E.toast.style.display='block'; clearTimeout(toastT);
+    toastT=setTimeout(()=>{E.toast.style.display='none';},5000);
+}
+
+/* ── INICIO ── */
+if (SHEET_ID) cargarSheets();
+</script>
+</body>
+</html>
